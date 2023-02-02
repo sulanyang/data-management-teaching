@@ -8,7 +8,7 @@ Data dictionary for `cohort.csv` and `covid.csv`.
 
 `redcap_event_name`: Two timepoints of data collection - at baseline and at 6 months follow up.
 
-`wgt_b` : weight (kg) at baseline.
+`wgt_b` : weight(kg) at baseline.
 
 `hgt_b` : height(cm) at baseline.
 
@@ -18,7 +18,7 @@ Data dictionary for `cohort.csv` and `covid.csv`.
 
 `race` : race, 1 = Malay, 2 = Chinese,  3 = Indian, 99 =  Others.
 
-`age_b_m` : "age_b` in Malay language questionnaire.
+`age_b_m` : `age_b` in Malay language questionnaire.
 
 `gender_m` : `gender` in Malay language questionnaire.
 
