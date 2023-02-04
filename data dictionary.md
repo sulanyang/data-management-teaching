@@ -1,8 +1,7 @@
-# data-management-teaching
+# data dictionary
 
-This repository contains Rmarkdown file and R script for teaching. Datasets used in the teaching were also uploaded.  
 
-Data dictionary for `cohort.csv` and `covid.csv`.
+## Data dictionary for `cohort.csv`
 
 `id` : Participant's ID
 
@@ -29,6 +28,8 @@ Data dictionary for `cohort.csv` and `covid.csv`.
 `snab` : antibody level (U/ml)
 
 `snab_result` : qualitative value of antibody level. 1 = antibody level >= x , 0 = antibody level < x.
+
+## Data dictionary for `df_covid.csv'.
 
 `rt` : was COVID-19 rapid test done? 1 = yes. 0 = no.
 
