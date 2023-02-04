@@ -29,7 +29,7 @@
 
 `snab_result` : qualitative value of antibody level. 1 = antibody level >= x , 0 = antibody level < x.
 
-## For `df_covid.csv`.
+## For `df_covid.csv`
 
 `rt` : was COVID-19 rapid test done? 1 = yes. 0 = no.
 
