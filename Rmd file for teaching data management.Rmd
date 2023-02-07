@@ -1,0 +1,255 @@
+---
+title: "Data wrangling"
+author: "Su Lan"
+#date: "`r Sys.Date()`"
+date: "February 2, 2023"
+output: html_document
+---
+
+```{css, echo=FALSE}
+.main-container {
+    max-width: 800px !important;
+}
+
+pre {
+  max-height: 800px !important;
+  overflow-y: auto !important;
+  overflow-x: scroll !important;
+}
+pre code {
+  white-space: pre
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# the default output hook
+hook_output_default <- knitr::knit_hooks$get('output')
+
+truncate_to_lines <- function(x, n) {
+   if (!is.null(n)) {
+      x = unlist(stringr::str_split(x, '\n'))
+      if (length(x) > n) {
+         # truncate the output
+         x = c(head(x, n), '...\n')
+      }
+      x = paste(x, collapse = '\n') # paste first n lines together
+   }
+   x
+}
+
+knitr::knit_hooks$set(output = function(x, options) {
+   max.lines <- options$max.lines
+   x <- truncate_to_lines(x, max.lines)
+
+   hook_output_default(x, options)
+})
+
+```
+
+## Load the data
+
+For practice purpose, we load it directly from [GitHub page](https://github.com/sulanyang/data-management-teaching).
+
+The data comes from a COVID-19 serosurveillance. We checked participants' COVID-19 antibody right before vaccination and 6 months after vaccination. We also captured participants' COVID-19 rapid test results if they had taken the test throughout study period.
+
+The datasets contain:
+
+-   demographic data (`df`)
+
+-   baseline and 6-month follow up dates and antibody levels (`df`)
+
+-   COVID-19 symptoms, testing date and result (`df_covid`)
+
+```{r}
+df<-read.csv("https://raw.githubusercontent.com/sulanyang/data-management-teaching/main/cohort%20data.csv")
+df_covid<-read.csv("https://raw.githubusercontent.com/sulanyang/data-management-teaching/main/covid%20data.csv")
+```
+
+## Load the packages
+
+`tidyverse` is a library of packages with useful functions for data wrangling. Let's check the [website](https://www.tidyverse.org/).
+
+`lubridate` is useful when dealing with dates data type. Why is `lubridate` not in `tidyverse` library?!
+
+```{r message=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+## Inspect our data
+
+Can you understand/guess the dataset just based on the variable names? This is when data dictionary or codebook comes in handy.
+
+Some context: We designed the self-administered sero-surveillance questionnaire in 2 languages, English and Malay. Participants can answer either in English or Malay and the responses are captured in different columns based on their preferred language. The suffix "`_m`" indicates that participants responded to the Malay version.
+
+```{r, echo=2 }
+options(width=160)
+head(df,10)
+```
+
+**Pro-tip: This data is in long format. Understanding long/wide format is important when dealing with dataframe objects.**
+
+What is long format? Why do we consider this long format?
+
+What is wide format? When will we need long/wide format?
+
+Now, we take a glimpse at what are data types in `df`. What do we need to know?
+
+```{r }
+glimpse(df)
+```
+
+Use `summary()` if you want more details. This is equivalent to `describe` in stata.
+
+**Pro-Tip #2: use `variable.names()` to display all column names. Use copy and paste when necessary to avoid typo.**
+
+```{r eval=FALSE}
+summary(df)
+variable.names(df)
+
+```
+
+## Finally we are starting to organize it (data wrangling)
+
+-   Combine the responses from English and Malay to a single variable.
+
+-   Remove the extra variables after #1.
+
+-   Rename the variable names that are not so intuitive.
+
+```{r max.lines=10}
+df<-df %>%
+  mutate (age_b  = ifelse(is.na(age_b),age_b_m, age_b),
+          gender = ifelse(is.na(gender),gender_m, gender),
+          race   = ifelse(is.na(race),race_m, race)) %>%
+  select (-(ends_with("_m"))) %>%
+  rename (wgt = wgt_b, 
+          hgt = hgt_b, 
+          age = age_b, 
+          visit=redcap_event_name) 
+
+```
+
+-   `date_taken` is character/string data. We need to change to date format so we can do maths with dates later.
+
+-   `visit` is character data. We need to change to factor.
+
+-   The level names for `visit` is too long. We need to `fct_recode()` it.
+
+```{r}
+df <- df %>%
+  mutate (date_taken = dmy(date_taken)) %>%
+  mutate (visit = as_factor(visit),
+          visit = fct_recode(visit, 
+                             "baseline" = "baseline_arm_1", 
+                             "6m" = "6_month_followup_arm_1" )) 
+```
+
+-   The df is in long format. It depends on the need later, we wish to change it to wide format. Read [here](https://tidyr.tidyverse.org/reference/pivot_wider.html) for more details about pivot/reshape.
+
+```{r, echo=2:3}
+options(width=160)
+
+df %>% 
+  pivot_wider (names_from=visit, 
+               values_from=c(date_taken, snab, snab_result),
+               names_vary = "slowest")
+```
+
+Oops, the output of wide format is not what we wanted (1 obs per row). We need to do some tricks to fill up the NA columns before `pivot_wider()` can work as desired.
+
+```{r, echo=2:3}
+options(width=160)
+
+df %>% 
+  group_by(id) %>%
+  mutate (wgt = mean(wgt, na.rm=TRUE),
+          hgt = mean(hgt, na.rm=TRUE),
+          age = mean(age, na.rm=TRUE),
+          gender = mean(gender, na.rm=TRUE),
+          race = mean(race, na.rm=TRUE)) %>%
+  ungroup (.) %>%
+  pivot_wider (names_from=visit, 
+               values_from=c(date_taken, snab, snab_result),
+               names_vary = "slowest")
+```
+
+## Done with data wrangling part I
+
+You can also pipe through the commands like this to combine all the steps.
+
+```{r}
+df<-read.csv("https://raw.githubusercontent.com/sulanyang/data-management-teaching/main/cohort%20data.csv")
+
+df<-df %>%
+  mutate (age_b  = ifelse(is.na(age_b),age_b_m, age_b),
+          gender = ifelse(is.na(gender),gender_m, gender),
+          race   = ifelse(is.na(race),race_m, race)) %>%
+  select (-(ends_with("_m"))) %>%
+  rename (wgt = wgt_b, 
+          hgt = hgt_b, 
+          age = age_b, 
+          visit=redcap_event_name) %>%
+  mutate (date_taken = dmy(date_taken),
+          visit = as_factor(visit),
+          visit = fct_recode(visit, 
+                             "baseline" = "baseline_arm_1", 
+                             "6m" = "6_month_followup_arm_1" )) %>%
+  group_by(id) %>%
+  mutate (wgt = mean(wgt, na.rm=TRUE),
+          hgt = mean(hgt, na.rm=TRUE),
+          age = mean(age, na.rm=TRUE),
+          gender = mean(gender, na.rm=TRUE),
+          race = mean(race, na.rm=TRUE)) %>%
+  ungroup (.) %>%
+  pivot_wider (names_from=visit, 
+               values_from=c(date_taken, snab, snab_result),
+               names_vary = "slowest")
+```
+
+## Merge with another data frame
+
+Very often in research, we will need to merge datasets. i.e., combine two or more linkable datasets with unique variable(s) (usually an ID). The functions from the [join family](http://rstudio-pubs-static.s3.amazonaws.com/227171_618ebdce0b9d44f3af65700e833593db.html) come handy. Sometimes it is worth checking for duplicates too. For merging, I find `left_join()` and `anti_join()` the most useful. There are many ways to check/identify duplications, it depends on your need. I find `janitor::get_dupes()` the most useful for my usage.
+
+Now, let's check `df_covid`.
+
+```{r}
+head(df_covid, 10)
+df_combo<-df %>% left_join(df_covid, by = "id")
+```
+
+## Data wrangling part II (exercise)
+
+-   What data type is the variable `rt_date` ?Should we change it to date format?
+
+-   Compute bmi from `wgt` and `hgt`. Categorize bmi according to WHO classification. Hint: `mutate()` and `case_when()` .
+
+-   Factorize `race` to 1 = Malay, 2 = Chinese, 3 = Indian, 99 = Others.
+
+-   Recode `rt_results` to 1 = Positive , 2 = Negative.
+
+-   Subtract `rt_date` from `date_taken_baseline` . Create a new variable to keep this info.
+
+-   Create two objects from `df`. `df1` consists of odd IDs only while `df2` consists of even IDs . Then append `df1` and `df2`. Hint: use `filter()` and `bind_rows()`
+
+-   Analyze `snab_6m` by BMI category and race, separately.
+
+-   Analyze if there is any difference between `snab_baseline` and `snab_6m`.
+
+-   Go ahead with ggplot if you wish to try data visualization. Might have to `pivot_longer()` for before ggplot.
+
+-   Anti_join `df_covid` from `df` to maintain only those participants who did not have any rapid test.
+
+## Cheatsheet!
+
+Fret not, it gets better with more hands-on experience. There are plenty of [cheatsheets](https://www.rstudio.com/wp-content/uploads/2015/02/data-wrangling-cheatsheet.pdf) for this work too. There is even [AI tool](https://rtutor.ai/).
+
+More pro-tips:
+
+1.  The art of naming your variables and factor levels.
+2.  The art of writing codes: Be elegant with your codes, alignment, spaces
+3.  Make your life easy with #annotations
+4.  Make your life easy with string data: lowercase all and remove symbols if appropriate
+5.  Deciding long or wide format
