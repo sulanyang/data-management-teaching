@@ -7,3 +7,4 @@ This repository contains
 - data dictionary to the datasets
 - Rmarkdown file html for the teaching 
 - R script for running the data management in one go and the answers for exercise.  
+A line I wrote on my local computer  
